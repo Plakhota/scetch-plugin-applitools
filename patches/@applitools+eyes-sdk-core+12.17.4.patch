@@ -1,0 +1,20 @@
+diff --git a/node_modules/@applitools/eyes-sdk-core/lib/logging/Logger.js b/node_modules/@applitools/eyes-sdk-core/lib/logging/Logger.js
+index 6811c47..10dc24b 100644
+--- a/node_modules/@applitools/eyes-sdk-core/lib/logging/Logger.js
++++ b/node_modules/@applitools/eyes-sdk-core/lib/logging/Logger.js
+@@ -140,7 +140,14 @@ class Logger {
+       const trace = stackTrace.get()
+ 
+       // _getMethodName() <- _getFormattedString <- log()/verbose() <- "actual caller"
+-      if (trace && trace.length >= 3) {
++      // stack-trace's .get() assumes V8's Error.prepareStackTrace hook is
++      // honored by Error.captureStackTrace. WebKit/JavaScriptCore (e.g.
++      // Sketch's WKWebView-based plugin webview) defines
++      // Error.captureStackTrace but doesn't run that hook, so `trace` ends up
++      // being a plain string instead of an array of V8 CallSite objects —
++      // trace[3] is then just a character, which has no getTypeName(). Guard
++      // for that instead of crashing; just skip the method-name prefix.
++      if (trace && trace.length >= 3 && typeof trace[3].getTypeName === 'function') {
+         const className = trace[3].getTypeName()
+         const methodName = trace[3].getMethodName()
+         return className ? `${className}.${methodName || '<init>'}(): ` : '(): '

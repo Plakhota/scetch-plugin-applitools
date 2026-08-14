@@ -1,1 +1,10 @@
 reference-archive/
+old-sketch-plugin/
+figma-plugin-applitools/
+
+node_modules/
+dist/
+*.sketchplugin
+resources/
+.DS_Store
+.claude/

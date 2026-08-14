@@ -1,0 +1,692 @@
+<!-- Ported from the Applitools Figma plugin's ui.html — same form/fields/theme, -->
+<!-- adapted for Sketch's sketch-module-web-view bridge instead of figma.ui. -->
+
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <title>Applitools Sketch Plugin</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    </head>
+    <style>
+        :root {
+            --primary: #00b3b0;
+            --primary-dark: #00928f;
+            --accent-pink: #e1006e;
+            --navy: #183153;
+            --bg: #f7f9fb;
+            --card-bg: #fff;
+            --border: #e3e7ed;
+            --text: #183153;
+            --text-muted: #6b7a90;
+            --input-bg: #ffffff;
+            --input-border: #dbe3ed;
+            --border-radius: 12px;
+            --shadow: 0 2px 8px rgba(26, 39, 69, 0.06);
+            --spacing: 20px;
+            --header-bg: #fff;
+            --logo-fill: #1a847b;
+        }
+        body.dark-mode {
+            --primary: #00b3b0;
+            --primary-dark: #00928f;
+            --accent-pink: #e1006e;
+            --navy: #e2e2e2;
+            --bg: #181825;
+            --card-bg: #23243a;
+            --border: #2d2d44;
+            --text: #e2e2e2;
+            --text-muted: #a0a0a0;
+            --input-bg: #30324f;
+            --input-border: #3a3b4d;
+            --shadow: 0 2px 8px rgba(0,0,0,0.18);
+            --header-bg: #23243a;
+            --logo-fill: #1a847b;
+        }
+        body {
+            background: var(--bg) !important;
+            color: var(--text);
+            min-height: 100vh;
+            padding: var(--spacing);
+            transition: background 0.3s, color 0.3s;
+        }
+        .container {
+            max-width: 800px;
+            margin: 32px auto;
+            background: var(--bg) !important;
+            border-radius: var(--border-radius);
+            transition: background 0.3s;
+            padding: calc(var(--spacing) * 1.5);
+        }
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--header-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 14px 22px 14px 18px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            transition: background 0.3s, color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .applitools-logo {
+            width: 32px;
+            height: 32px;
+            display: block;
+        }
+        .applitools-logo path,
+        .applitools-logo circle {
+            fill: var(--logo-fill);
+            transition: fill 0.3s;
+        }
+        .header-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: 0.01em;
+        }
+        .theme-toggle {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .theme-toggle:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+        .theme-toggle .icon {
+            font-size: 16px;
+        }
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: var(--spacing);
+        }
+        .card {
+            background: var(--card-bg) !important;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: var(--spacing);
+            margin-bottom: var(--spacing);
+            border: 1px solid var(--border);
+            transition: background 0.3s, color 0.3s;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text);
+            padding: var(--spacing);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background-color: var(--bg-darker);
+            border-radius: var(--border-radius);
+            padding: calc(var(--spacing) * 1.5);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: calc(var(--spacing) * 2);
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing);
+        }
+
+        .input-wrapper {
+            position: relative;
+            margin-bottom: var(--spacing);
+        }
+
+        .input {
+            width: 100%;
+            padding: 12px 16px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: var(--border-radius);
+            color: var(--text);
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 162, 152, 0.2);
+        }
+
+        .input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .select-wrapper {
+            position: relative;
+            margin-bottom: var(--spacing);
+        }
+
+        .select {
+            width: 100%;
+            padding: 12px 16px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: var(--border-radius);
+            color: var(--text);
+            font-size: 14px;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 162, 152, 0.2);
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--text-muted);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: var(--spacing);
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            margin-right: 12px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--input-bg);
+            border: 1.5px solid var(--input-border);
+            transition: .4s;
+            border-radius: 24px;
+            box-sizing: border-box;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #605656;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        body.dark-mode .toggle-slider:before {
+            background-color: #e2e2e2;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary);
+            border-color: var(--navy);
+        }
+
+        input:checked + .toggle-slider:before {
+            background-color: #fff;
+            transform: translate(18px, -50%);
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .button-group {
+            display: flex;
+            gap: var(--spacing);
+            margin-top: calc(var(--spacing) * 2);
+        }
+
+        .button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .button-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .button-primary:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .button-secondary {
+            background-color: var(--input-bg);
+            color: var(--text);
+        }
+
+        .button-secondary:hover {
+            background-color: #363652;
+        }
+
+        .accordion {
+            width: 100%;
+            background-color: var(--input-bg);
+            color: var(--text);
+            cursor: pointer;
+            padding: 12px 16px;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing);
+            transition: all 0.2s ease;
+        }
+
+        .accordion:hover {
+            background-color: #1a847b50;
+        }
+
+        .accordion:after {
+            content: '+';
+            color: var(--text-muted);
+            font-weight: bold;
+            float: right;
+            margin-left: 5px;
+        }
+
+        .accordion.active:after {
+            content: '−';
+        }
+
+        .panel {
+            padding: 0 16px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+            background-color: var(--bg-darker);
+            border-radius: var(--border-radius);
+        }
+
+        .panel.active {
+            max-height: 1000px;
+            padding: 30px;
+            margin-bottom: var(--spacing);
+        }
+
+        .terminal {
+            width: 100%;
+            background-color: var(--input-bg);
+            color: var(--text);
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            padding: 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid #363652;
+            margin-top: var(--spacing);
+            display: none;
+        }
+
+        .results {
+            margin-top: var(--spacing);
+            padding: var(--spacing);
+            background-color: var(--input-bg);
+            border-radius: var(--border-radius);
+            display: none;
+        }
+
+        .results a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .results a:hover {
+            text-decoration: underline;
+        }
+
+        .tooltip-container {
+          position: relative;
+          display: inline-block;
+          cursor: pointer;
+          margin-left: 6px;
+        }
+
+        .info-icon {
+          display: inline-block;
+          width: 16px;
+          height: 16px;
+          background: #e2e2e2;
+          color: #183153;
+          border-radius: 50%;
+          text-align: center;
+          font-size: 12px;
+          line-height: 16px;
+          font-weight: bold;
+          transition: background 0.2s;
+        }
+
+        .tooltip-text {
+          visibility: hidden;
+          width: 220px;
+          background-color: #333;
+          color: #fff;
+          text-align: left;
+          border-radius: 4px;
+          padding: 8px;
+          position: absolute;
+          z-index: 1;
+          bottom: 125%;
+          left: 50%;
+          transform: translateX(-50%);
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+
+        .tooltip-container:hover .tooltip-text {
+          visibility: visible;
+          opacity: 1;
+        }
+    </style>
+    <body>
+        <div class="container">
+            <div class="header-bar">
+                <div class="header-left">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="47" height="64" viewBox="0 0 256 350"><path fill="#00A298" d="M195.725 174.716a238.4 238.4 0 0 1-5.124 49.174c-21.835-13.617-50.72-29.986-88.82-49.174c38.1-19.2 66.972-35.57 88.82-49.186a238.5 238.5 0 0 1 5.111 49.186M256 74.246V21.494a1023 1023 0 0 1-56.828 46.75C178.845 37.22 152.87 15.32 118.702 0c26.775 23.748 45.176 50.51 59.068 84.088C70.117 161.322 0 174.716 0 174.716s70.117 13.382 177.77 90.629c-13.892 33.59-32.28 60.327-59.069 84.075c34.168-15.321 60.144-37.221 80.471-68.243A1022 1022 0 0 1 256 327.939v-52.752s-6.448-10.747-37.3-32.66c7.864-21.114 12.189-43.958 12.189-67.81a194 194 0 0 0-12.189-67.811c30.852-21.927 37.3-32.66 37.3-32.66"/></svg>
+                    <span class="header-title">Applitools Sketch</span>
+                </div>
+                <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">
+                    <span class="icon" id="theme-icon">🌙</span>
+                </button>
+            </div>
+            <div class="subtitle">Visual testing for your Sketch designs</div>
+
+            <div class="form-group">
+                <div class="input-wrapper">
+                    <label class="label" for="key">
+                        Applitools API Key
+                        <a href="https://applitools.com/tutorials/getting-started/retrieve-api-key" target="_blank" class="tooltip-container">
+                            <span class="info-icon">?</span>
+                        </a>
+                    </label>
+                    <input id="key" class="input" type="text" placeholder="Enter your API key" />
+                </div>
+
+                <div class="input-wrapper">
+                    <label class="label" for="url">
+                        Eyes Server URL
+                        <span class="tooltip-container">
+                          <span class="info-icon">?</span>
+                        <span class="tooltip-text">This is the URL of your Applitools Eyes server (e.g. https://eyes.applitools.com).</span>
+                      </span>
+                    </label>
+                    <input id="url" class="input" type="text" value="https://eyes.applitools.com" />
+                </div>
+            </div>
+
+            <button class="accordion">Additional Settings (Optional)</button>
+            <div class="panel">
+                <div class="input-wrapper">
+                    <label class="label" for="proxy">
+                        Proxy URL
+                    </label>
+                    <input id="proxy" class="input" type="text" placeholder="http://username:password@proxy.example.com:8080" />
+                </div>
+
+                <div class="input-wrapper">
+                    <label class="label" for="matchLevel">
+                        Match Level
+                        <a href="https://applitools.com/tutorials/concepts/best-practices/match-levels" target="_blank" class="tooltip-container">
+                            <span class="info-icon">?</span>
+                        </a>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="matchLevel" class="select">
+                            <option value="">Default</option>
+                            <option value="Strict">Strict</option>
+                            <option value="Content">Content</option>
+                            <option value="Layout">Layout</option>
+                            <option value="Exact">Exact</option>
+                        </select>
+                        <span class="select-arrow">▼</span>
+                    </div>
+                </div>
+
+                <div class="input-wrapper">
+                    <label class="label" for="contrastLevel">
+                        Contrast Level
+                        <a href="https://applitools.com/tutorials/concepts/test-execution/accessibility-testing" target="_blank" class="tooltip-container">
+                            <span class="info-icon">?</span>
+                        </a>
+                    </label>
+                    <div class="select-wrapper">
+                        <select id="contrastLevel" class="select">
+                            <option value="">None</option>
+                            <option value="AA 2_0">AA 2.0</option>
+                            <option value="AA 2_1">AA 2.1</option>
+                            <option value="AAA 2_0">AAA 2.0</option>
+                            <option value="AAA 2_1">AAA 2.1</option>
+                        </select>
+                        <span class="select-arrow">▼</span>
+                    </div>
+                </div>
+
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="everything">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Include Components</span>
+                </div>
+
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="saveFailedTests">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Auto Accept Baselines</span>
+                </div>
+
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="ignoreDisplacements">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Ignore Displacements</span>
+                </div>
+
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" id="setNotifyOnCompletion">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Notify On Completion</span>
+                </div>
+
+                <div class="input-wrapper">
+                    <label class="label" for="baselineEnv">
+                        Baseline Environment Name Override
+                        <a href="https://applitools.com/tutorials/concepts/test-execution/cross-environment-testing#running-cross-environment-tests-in-practice" target="_blank" class="tooltip-container">
+                            <span class="info-icon">?</span>
+                        </a>
+                    </label>
+                    <input id="baselineEnv" class="input" type="text" value="" />
+                </div>
+
+                <div class="input-wrapper">
+                    <label class="label" for="os">
+                        OS Name Override
+                        <a href="https://help.applitools.com/hc/en-us/articles/360007189271-Overriding-OS-and-hosting-applications-parameters" target="_blank" class="tooltip-container">
+                            <span class="info-icon">?</span>
+                        </a>
+                    </label>
+                    <input id="os" class="input" type="text" value="sketch-plugin" />
+                </div>
+
+                <div class="input-wrapper">
+                    <label class="label" for="browser">
+                        Browser Name Override
+                        <a href="https://help.applitools.com/hc/en-us/articles/360007189271-Overriding-OS-and-hosting-applications-parameters" target="_blank" class="tooltip-container">
+                            <span class="info-icon">?</span>
+                        </a>
+                    </label>
+                    <input id="browser" class="input" type="text" value="sketch-plugin" />
+                </div>
+
+                <div class="input-wrapper">
+                    <label class="label" for="widths">
+                        Additional Widths
+                    </label>
+                    <input id="widths" class="input" type="text" placeholder="e.g. 800,1200" />
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="save" class="button button-primary">Export</button>
+                <button id="cancel" class="button button-secondary">Cancel</button>
+            </div>
+
+            <textarea id="console" class="terminal" rows="10" disabled></textarea>
+
+            <div id="results-section" class="results">
+                <a id="results-url" href="" target="_blank">View Screenshots</a>
+                <button id="opendashboard" class="button button-primary" style="margin-top: 12px;">Open Applitools</button>
+            </div>
+
+            <button id="baseline-list-section" class="accordion" style="display: none;">Developer Configuration</button>
+            <div class="panel">
+                <p style="margin-bottom: 12px;">For Design vs Production comparison, please share the following information with your developers:</p>
+                <ul id="baseline-list" style="list-style-type: none; font-size: 12px; padding: 12px; background-color: var(--input-bg); border-radius: var(--border-radius);">
+                </ul>
+            </div>
+        </div>
+
+        <script>
+            // Accordion functionality
+            document.querySelectorAll('.accordion').forEach(button => {
+                button.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    const panel = this.nextElementSibling;
+                    panel.classList.toggle('active');
+                });
+            });
+
+            // Console logging
+            (function() {
+                if (!console) {
+                    console = {};
+                }
+                var old = console.log;
+                var logger = document.getElementById('console');
+                console.log = function(message) {
+                    if (typeof message == 'object') {
+                        logger.innerHTML += (JSON && JSON.stringify ? JSON.stringify(message) : String(message)) + '\n';
+                    } else {
+                        logger.innerHTML += message + '\n';
+                    }
+                    logger.scrollTop = logger.scrollHeight;
+                }
+            })();
+
+            // Theme toggle logic
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            function setTheme(mode) {
+                if (mode === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    themeIcon.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    themeIcon.textContent = '🌙';
+                }
+                localStorage.setItem('applitools-theme', mode);
+            }
+            themeToggle.addEventListener('click', () => {
+                const isDark = document.body.classList.contains('dark-mode');
+                setTheme(isDark ? 'light' : 'dark');
+            });
+            // On load, set theme from localStorage
+            (function() {
+                const saved = localStorage.getItem('applitools-theme');
+                if (saved === 'dark') setTheme('dark');
+                else setTheme('light');
+            })();
+        </script>
+    </body>
+</html>

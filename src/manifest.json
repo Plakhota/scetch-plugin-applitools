@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sketch-hq/SketchAPI/develop/docs/sketch-plugin-manifest-schema.json",
+  "name": "Applitools",
+  "identifier": "com.applitools.eyes-sketch-plugin",
+  "version": "0.1.0",
+  "description": "Upload Sketch artboard screenshots to Applitools Eyes for visual testing.",
+  "author": "Applitools",
+  "authorEmail": "support@applitools.com",
+  "commands": [
+    {
+      "name": "Export Designs",
+      "identifier": "export-designs",
+      "script": "./export-designs.js",
+      "handlers": {
+        "run": "onExportDesigns"
+      }
+    }
+  ],
+  "menu": {
+    "title": "Applitools",
+    "items": ["export-designs"]
+  }
+}

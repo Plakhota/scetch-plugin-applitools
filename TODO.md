@@ -42,3 +42,7 @@ sent to the server, so it's a first-class, supported field — just needs
 wiring up: `config.addProperty('baselineEnvName', baselineEnvName)` near
 where `eyes.setBaselineEnvName(baselineEnvName)` is already called in
 `src/ui.ts`'s `upload()`.
+
+
+## Add MatchLevel Toggle
+Recommended: None, or Layout, or Strict

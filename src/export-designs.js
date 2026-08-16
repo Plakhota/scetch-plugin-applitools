@@ -80,8 +80,26 @@ export function onExportDesigns(context) {
     })
   })
 
+  // browserWindow.close() (used by both the native red traffic-light button
+  // and, previously, our own Cancel handler) round-trips through the native
+  // windowShouldClose: delegate (sketch-module-web-view's set-delegates.js)
+  // before actually closing — confirmed via a real repro that this can get
+  // stuck (window never closes, via either path) specifically after the
+  // underlying Sketch document window has already been closed while this
+  // panel was still open. Intercept every close attempt and redirect to
+  // destroy(), which calls NSWindow's close() directly, skipping that
+  // round-trip entirely. We don't need the cancelable-close semantics this
+  // hook normally exists for (e.g. "unsaved changes" warnings), so it's safe
+  // to always take the more forceful path here, regardless of how the close
+  // was triggered.
+  browserWindow.on('close', (event) => {
+    event.preventDefault()
+    browserWindow.destroy()
+  })
+
   webContents.on(Messages.CANCEL, () => {
-    browserWindow.close()
+    appendLog('[bridge] CANCEL received — destroying browserWindow')
+    browserWindow.destroy()
   })
 
   webContents.on(Messages.SAVE, (payload) => {

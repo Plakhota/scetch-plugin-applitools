@@ -8,3 +8,8 @@ dist/
 resources/
 .DS_Store
 .claude/
+
+# Built distributable zip — regenerate via `npm run build` + zipping
+# applitools.sketchplugin (see artifacts/INSTALL.md); not meant to be
+# versioned, since it's a binary build output that changes every rebuild.
+artifacts/*.zip

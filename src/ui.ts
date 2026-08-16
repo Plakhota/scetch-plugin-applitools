@@ -95,7 +95,13 @@ function bridgeAdapter(config: any) {
 
 axios.defaults.adapter = bridgeAdapter;
 
-document.getElementById('save').onclick = (event) => {
+// Named so it can be reassigned back onto #save's onclick after a run
+// finishes — see disableExportButton()/enableExportButton() below. The
+// element's onclick is set to null while disabled, which is what actually
+// stops a double-click (not the .attributes[...] assignments further down,
+// which don't set real DOM attributes since HTMLElement.attributes is a
+// NamedNodeMap, not a plain object — left as-is/dead code, harmless).
+function handleExportClick(event) {
 
   (<HTMLDivElement>document.getElementById('console')).style.display = 'inherit';
   window.scrollBy(0, 500);
@@ -112,11 +118,7 @@ document.getElementById('save').onclick = (event) => {
   (<HTMLDivElement>document.getElementById('baseline-list-section')).style.display = 'none';
 
   if (apiKey.length > 0) {
-    document.getElementById('save').style.backgroundColor = "#5A5A5A";
-    document.getElementById('save').style[ 'cursor' ] = "not-allowed";
-    document.getElementById('save').onclick = null;
-    document.getElementById('save').attributes[ 'onclick' ] = null;
-    document.getElementById('save').attributes[ 'disabled' ] = 'disabled';
+    disableExportButton();
 
     var allComponents = (<HTMLInputElement>document.getElementById('everything')).checked;
     const widths = (<HTMLInputElement>document.getElementById('widths')).value;
@@ -127,6 +129,24 @@ document.getElementById('save').onclick = (event) => {
     postToPlugin(Messages.KEY_OR_URL_ERROR);
   }
 }
+
+function disableExportButton() {
+  const save = document.getElementById('save');
+  save.style.backgroundColor = "#5A5A5A";
+  save.style[ 'cursor' ] = "not-allowed";
+  save.setAttribute('disabled', 'disabled');
+  save.onclick = null;
+}
+
+function enableExportButton() {
+  const save = document.getElementById('save');
+  save.style.backgroundColor = '';
+  save.style[ 'cursor' ] = '';
+  save.removeAttribute('disabled');
+  save.onclick = handleExportClick;
+}
+
+document.getElementById('save').onclick = handleExportClick;
 
 document.getElementById('cancel').onclick = () => {
   console.log("User Cancelled")
@@ -173,6 +193,7 @@ let statusCounter: { [ key: string ]: number } = {};
 
   if (message.type === Messages.KEY_OR_URL_ERROR) {
     console.log("Error: Please enter your Applitools Server Url and Api Key!");
+    enableExportButton();
     return
   }
 
@@ -196,6 +217,7 @@ let statusCounter: { [ key: string ]: number } = {};
       "No exportable frames found — nothing was uploaded. Check the 'Scanned layers' line above: " +
       "only top-level Artboards/Frames are exported by default, unless 'Include Components' is on."
     );
+    enableExportButton();
     return
   }
 
@@ -272,10 +294,7 @@ let statusCounter: { [ key: string ]: number } = {};
     } catch (error) {
       console.log(error);
     } finally {
-      // (<HTMLButtonElement>document.getElementById('save')).disabled = false;
-      // document.getElementById('save').removeAttribute('disabled');
-      //(<HTMLButtonElement>document.getElementById('save')).removeAttribute('disabled')
-      //(<HTMLDivElement>document.getElementById('save')).removeAttribute('disabled');
+      enableExportButton();
     }
   }
 }

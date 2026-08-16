@@ -6,19 +6,36 @@
 // back to it) differ, since Sketch's sketch-module-web-view bridge carries
 // JSON-serializable messages over named channels instead of Figma's
 // structured-clone postMessage/pluginMessage protocol.
+//
+// One real difference from the Figma version: eyes.applitools.com enforces a
+// strict CORS origin allowlist that this webview can never satisfy (confirmed
+// live — even a completely ordinary origin like https://example.com was
+// rejected by the real /api/sessions/renderinfo endpoint from a normal Safari
+// tab, so no origin this webview could claim for itself would ever pass).
+// Rather than reimplementing the SDK's wire protocol elsewhere, the fix here
+// is narrower: axios (which the SDK's ServerConnector is built on) supports a
+// pluggable `adapter` — see bridgeAdapter() below. Every actual HTTP request
+// the SDK makes gets routed through export-designs.js, which performs the
+// real fetch from Sketch's native plugin-script context (not a browser, not
+// subject to CORS at all). The SDK itself — Eyes, Configuration, Target,
+// eyes.open()/check()/close() — runs completely unmodified; only the lowest
+// transport layer is swapped out.
 
 const {
   MatchLevel,
   AccessibilityLevel,
   AccessibilityGuidelinesVersion,
-  Region,
-  ImageMatchSettings,
-  ExactMatchSettings,
   Eyes,
   Target,
   Configuration,
   BatchInfo
 } = require('@applitools/eyes-images')
+
+const axios = require('axios')
+const buildFullPath = require('axios/lib/core/buildFullPath')
+const buildURL = require('axios/lib/helpers/buildURL')
+const settle = require('axios/lib/core/settle')
+const createError = require('axios/lib/core/createError')
 
 const Messages = require('./bridge/messages')
 
@@ -29,6 +46,54 @@ function postToPlugin(type: string, payload?: object) {
   // to the plugin script's `webContents.on(type, handler)` listener.
   (window as any).postMessage(type, payload || {});
 }
+
+// ---------------------------------------------------------------------------
+// axios transport bridge — see the file-level comment above for why this
+// exists. This is a custom axios `adapter`: instead of performing the actual
+// network I/O itself (like the stock xhr.js adapter does with
+// XMLHttpRequest), it hands the fully-resolved request off to
+// export-designs.js over the existing plugin<->webview bridge, and resolves/
+// rejects the same way axios's own adapters do (via `settle`/`createError`),
+// so the SDK's request/response interceptors — retries, the 202+Location
+// long-running-task polling, apiKey/header injection — keep working
+// completely transparently. None of that had to be reimplemented.
+// ---------------------------------------------------------------------------
+
+let requestSeq = 0;
+const pendingHttpRequests: { [ id: string ]: { resolve: Function, reject: Function, config: any } } = {};
+
+function bridgeAdapter(config: any) {
+  return new Promise((resolve, reject) => {
+    const id = `req-${++requestSeq}`;
+    const fullPath = buildFullPath(config.baseURL, config.url);
+    const fullUrl = buildURL(fullPath, config.params, config.paramsSerializer);
+
+    let data = config.data;
+    let isBinary = false;
+    if (data && typeof data !== 'string') {
+      // The screenshot upload (a PUT of raw PNG bytes to Azure Blob Storage)
+      // is the one non-string body in this protocol — everything else is a
+      // JSON string by the time axios's default transformRequest has run.
+      // Sketch's bridge only carries JSON-safe values, so base64-encode it;
+      // export-designs.js decodes it back to real bytes before the real fetch.
+      isBinary = true;
+      data = Buffer.isBuffer(data) ? data.toString('base64') : Buffer.from(data).toString('base64');
+    }
+
+    pendingHttpRequests[ id ] = { resolve, reject, config };
+
+    postToPlugin(Messages.HTTP_REQUEST, {
+      id,
+      method: (config.method || 'get').toUpperCase(),
+      url: fullUrl,
+      headers: config.headers,
+      data,
+      isBinary,
+    });
+  });
+}
+
+axios.defaults.adapter = bridgeAdapter;
 
 document.getElementById('save').onclick = (event) => {
 
@@ -75,6 +140,27 @@ let statusCounter: { [ key: string ]: number } = {};
 // Called directly by export-designs.js via webContents.executeJavaScript(),
 // in place of Figma's `onmessage = async event => { ... event.data.pluginMessage }`.
 (window as any).receiveFromPlugin = async function (message: any) {
+  if (message.type === Messages.HTTP_RESPONSE) {
+    const pending = pendingHttpRequests[ message.id ];
+    if (!pending) return;
+    delete pendingHttpRequests[ message.id ];
+
+    if (message.error) {
+      pending.reject(createError(message.error, pending.config, message.code || null, null));
+      return;
+    }
+
+    settle(pending.resolve, pending.reject, {
+      data: message.data,
+      status: message.status,
+      statusText: message.statusText || '',
+      headers: message.headers || {},
+      config: pending.config,
+      request: null,
+    });
+    return;
+  }
+
   if (message.type === Messages.SETTINGS) {
     if (message.applitoolsApiKey) {
       (<HTMLInputElement>document.getElementById('key')).value = message.applitoolsApiKey
@@ -124,6 +210,9 @@ let statusCounter: { [ key: string ]: number } = {};
 
       if (isError) {
         console.log('Error uploading to Applitools');
+        tresults.filter(test => test instanceof Error).forEach((error: any) => {
+          console.log(`\n${error.message}\n`);
+        });
       } else {
 
         batchUrls = tresults.map(test => test._appUrls._batch).filter((item, i, ar) => ar.indexOf(item) === i)
@@ -268,11 +357,14 @@ async function upload(results, baselineList, projectName) {
       try {
         eyes.setConfiguration(config);
 
-        //Set Proxy if entered...
+        // NOTE: eyes.setProxy() configures axios's Node-level proxy agent,
+        // which has no effect now — the actual network I/O happens via
+        // bridgeAdapter() -> export-designs.js's native fetch, which has no
+        // proxy-configuration equivalent. Left here so the setting doesn't
+        // silently vanish from the form, but it's a known no-op.
         var proxyUrl = (<HTMLInputElement>document.getElementById('proxy')).value
         if (proxyUrl) {
-          console.log("Setting Proxy: " + proxyUrl)
-          eyes.setProxy(proxyUrl);
+          console.log("Note: the Proxy URL setting has no effect — see the comment above this line.")
         }
 
         width = Math.round(Number(design.width));

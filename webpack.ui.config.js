@@ -69,6 +69,15 @@ module.exports = (env, argv) => ({
       chunks: ['ui'],
     }),
     new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/ui/]),
+    // Eyes SDK's internal loggers read process.env.APPLITOOLS_SHOW_LOGS at
+    // construction time (see eyes-sdk-core/lib/sdk/EyesCore.js) to decide
+    // between a silent DebugLogHandler and a verbose ConsoleLogHandler. Since
+    // this bundle's `process.env` is a build-time polyfill, not a real shell
+    // environment, the flag has to be baked in here rather than set as an
+    // actual env var when running Sketch.
+    new webpack.DefinePlugin({
+      'process.env.APPLITOOLS_SHOW_LOGS': JSON.stringify('true'),
+    }),
     new webpack.ProvidePlugin({
       Buffer: [require.resolve('buffer'), 'Buffer'],
       process: [require.resolve('process/browser')],

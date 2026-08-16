@@ -655,12 +655,18 @@
                 var old = console.log;
                 var logger = document.getElementById('console');
                 console.log = function(message) {
-                    if (typeof message == 'object') {
-                        logger.innerHTML += (JSON && JSON.stringify ? JSON.stringify(message) : String(message)) + '\n';
-                    } else {
-                        logger.innerHTML += message + '\n';
-                    }
+                    var text = (typeof message == 'object')
+                        ? (JSON && JSON.stringify ? JSON.stringify(message) : String(message))
+                        : String(message);
+                    logger.innerHTML += text + '\n';
                     logger.scrollTop = logger.scrollHeight;
+                    // Relay to the plugin script too, so it also reaches
+                    // `npx skpm log -f` (this webview has no real fs access).
+                    try {
+                        window.postMessage('LOG', { message: text });
+                    } catch (e) {
+                        // sketch-module-web-view bridge not ready yet — ignore.
+                    }
                 }
             })();
 

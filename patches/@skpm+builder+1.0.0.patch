@@ -1,0 +1,13 @@
+diff --git a/node_modules/@skpm/builder/lib/utils/webpackConfig.js b/node_modules/@skpm/builder/lib/utils/webpackConfig.js
+index a7da684..3015555 100644
+--- a/node_modules/@skpm/builder/lib/utils/webpackConfig.js
++++ b/node_modules/@skpm/builder/lib/utils/webpackConfig.js
+@@ -171,7 +171,7 @@ function getWebpackConfig(argv, output, manifestFolder, skpmConfig) {
+       if (userDefinedWebpackConfig) {
+         const resolvedUserDefinedConfig = yield userDefinedWebpackConfig(webpackConfig, entry);
+         if (resolvedUserDefinedConfig) {
+-          webpackConfig = _webpackMerge2.default.smart(webpackConfig, resolvedUserDefinedConfig);
++          webpackConfig = _webpackMerge2.default(webpackConfig, resolvedUserDefinedConfig);
+         }
+       }
+ 

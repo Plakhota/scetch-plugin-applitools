@@ -4,7 +4,7 @@ index 6811c47..10dc24b 100644
 +++ b/node_modules/@applitools/eyes-sdk-core/lib/logging/Logger.js
 @@ -140,7 +140,14 @@ class Logger {
        const trace = stackTrace.get()
- 
+
        // _getMethodName() <- _getFormattedString <- log()/verbose() <- "actual caller"
 -      if (trace && trace.length >= 3) {
 +      // stack-trace's .get() assumes V8's Error.prepareStackTrace hook is

@@ -9,23 +9,60 @@ const API_KEY_SETTING = 'applitoolsApiKey'
 const SERVER_URL_SETTING = 'serverUrl'
 const DEFAULT_SERVER_URL = 'https://eyes.applitools.com'
 
+// NOTE: `fs` is NOT available in this Sketch version's plugin script context
+// ("fs is not a core package" — a native Obj-C exception, uncatchable by JS
+// try/catch, confirmed via a real run), despite Sketch's own docs listing it
+// as preinstalled. Do not require('fs')/require('os') here again — it will
+// crash the whole command, not just this feature.
+//
+// Instead, relay everything through console.log, which Sketch does support
+// and which skpm-build already routes to `npx skpm log -f`. To capture a
+// persistent log file, redirect that stream yourself:
+//   npx skpm log -f > dump.log 2>&1
+function appendLog(line) {
+  console.log(line)
+}
+
 // Sketch tears down this script's JS context as soon as onExportDesigns()
 // returns, so a fiber is required to keep it alive while the user fills in
 // the webview form and clicks Export/Cancel (both fire asynchronously,
-// arbitrarily long after this function has already returned).
+// arbitrarily long after this function has already returned), and while any
+// in-flight HTTP_REQUEST bridge calls (see performHttpRequest() below) are
+// still pending.
 export function onExportDesigns(context) {
   const fiber = createFiber()
   const document = sketch.getSelectedDocument()
   const page = document.selectedPage
 
-  const browserWindow = new BrowserWindow({
-    identifier: WEBVIEW_IDENTIFIER,
-    width: 520,
-    height: 760,
-    show: true,
-    title: 'Applitools',
-    resizable: true,
-  })
+  // sketch-module-web-view tracks open windows by identifier (in
+  // NSThread.mainThread().threadDictionary()) and reuses an existing one for
+  // the same identifier — but if a previous window was torn down abnormally
+  // (e.g. the plugin crashed mid-run) rather than via its normal close path,
+  // that registry can end up out of sync with the real WebKit-level state:
+  // the tracked panel reference is gone, so a brand-new WKWebView gets
+  // created, but the OS-level script message handler ('__skpm_sketchBridge')
+  // from the orphaned old one is still registered, and WKUserContentController
+  // throws rather than allowing a duplicate. This is native Cocoa/WebKit
+  // process state, not something our JS can clean up — the fix is quitting
+  // and relaunching Sketch. Catch it here so the user gets a clear,
+  // guaranteed-visible message instead of a silent crash with no window.
+  let browserWindow
+  try {
+    browserWindow = new BrowserWindow({
+      identifier: WEBVIEW_IDENTIFIER,
+      width: 520,
+      height: 760,
+      show: true,
+      title: 'Applitools',
+      resizable: true,
+    })
+  } catch (e) {
+    sketch.UI.message(
+      'Applitools: a previous plugin window is stuck. Please fully quit and reopen Sketch, then try again.'
+    )
+    fiber.cleanup()
+    return
+  }
 
   const webContents = browserWindow.webContents
 
@@ -76,17 +113,29 @@ export function onExportDesigns(context) {
     sketch.UI.message('Upload Complete!')
   })
 
+  // Relayed from the webview's console.log shim (src/ui.html) — this is how
+  // both our own upload-flow logs and the Eyes SDK's own verbose
+  // ConsoleLogHandler output (APPLITOOLS_SHOW_LOGS=true) end up in
+  // `npx skpm log -f` (redirect that to a file yourself if you want a
+  // persistent log — see README).
+  webContents.on(Messages.LOG, (payload) => {
+    appendLog((payload && payload.message) || '')
+  })
+
+  // See the file-level comment above performHttpRequest() for why this
+  // exists: the webview's axios adapter (src/ui.ts) forwards every request
+  // the Eyes SDK makes to here instead of using the browser's own fetch/XHR.
+  webContents.on(Messages.HTTP_REQUEST, (payload) => {
+    performHttpRequest(payload || {}).then((response) => {
+      send({ type: Messages.HTTP_RESPONSE, ...response })
+    })
+  })
+
   browserWindow.once('closed', () => {
     fiber.cleanup()
   })
 
-  // Sketch's plugin script context has no Node __dirname/module system, so
-  // resource paths inside the .sketchplugin bundle have to be resolved via
-  // Sketch's own API: context.plugin.urlForResourceNamed() looks up a file
-  // in Contents/Resources/ (where skpm-build copies resources/ui.html per
-  // the "skpm.assets" glob in package.json) and hands back a usable file URL.
-  const uiURL = context.plugin.urlForResourceNamed('ui.html').absoluteString()
-  browserWindow.loadURL(uiURL)
+  browserWindow.loadURL('ui.html')
 }
 
 function getProjectName(document) {
@@ -137,7 +186,7 @@ function collectDesigns(document, page, everything, arrWidths) {
   // silent — if layer.type here doesn't match FRAME_TYPES for your Sketch
   // version, that's exactly why 0 designs get collected.
   const scanSummary = nodes.map((layer) => `${layer.name} (${layer.type})`).join(', ') || '(none)'
-  console.log(
+  appendLog(
     `Scanning ${nodes.length} ${usingSelection ? 'selected' : 'top-level'} layer(s): ${scanSummary}`
   )
   sketch.UI.message(`Scanning ${nodes.length} layer(s)…`)
@@ -210,4 +259,67 @@ function toBase64(data) {
     binary += String.fromCharCode(bytes[i])
   }
   return btoa(binary)
+}
+
+// ---------------------------------------------------------------------------
+// Generic HTTP transport bridge for the webview's axios instance.
+//
+// The Eyes SDK (@applitools/eyes-images) runs entirely, unmodified, in the
+// webview (src/ui.ts) — real Eyes/Configuration/Target objects, real
+// eyes.open()/check()/close() calls. The one problem: eyes.applitools.com
+// enforces a strict CORS origin allowlist that no page loaded in this
+// webview can ever satisfy (confirmed live: even a completely ordinary
+// origin like https://example.com was rejected by the real
+// /api/sessions/renderinfo endpoint from a normal Safari tab — this isn't a
+// "local page" quirk, it's a real allowlist).
+//
+// Rather than reimplementing the SDK's wire protocol, ui.ts overrides
+// axios's `adapter` (a documented, public extension point — see
+// bridgeAdapter() there) so every HTTP call the SDK makes is handed off to
+// here instead of the browser's own fetch/XHR. This context is Sketch's
+// native plugin-script environment, not a browser, so it isn't subject to
+// CORS at all: `fetch` here is provided by sketch-polyfill-fetch (via
+// @skpm/builder, auto-injected for plugin-command bundles), backed by real
+// NSURLSession. All of the SDK's own request/response interceptor logic
+// (headers, retries, the 202+Location long-running-task polling) keeps
+// running unmodified inside axios in the webview — this function only ever
+// needs to perform one request and hand back the raw response.
+// ---------------------------------------------------------------------------
+
+async function performHttpRequest({ id, method, url, headers, data, isBinary }) {
+  try {
+    const body = isBinary ? Buffer.from(data, 'base64') : data
+    const options = { method, headers: headers || {} }
+    if (body !== undefined && body !== null && body !== '' && method !== 'GET' && method !== 'HEAD') {
+      options.body = body
+    }
+
+    const response = await fetch(url, options)
+
+    let text = ''
+    try {
+      text = await response.text()
+    } catch (e) {
+      // sketch-polyfill-fetch's text() rejects with "Couldn't parse body"
+      // for ANY empty response body — it can't distinguish a genuinely
+      // empty (but valid) body from a decode failure. Treat that as "no
+      // body", not fatal; response.status/ok are still accurate.
+      text = ''
+    }
+
+    const responseHeaders = {}
+    response.headers.entries().forEach(([key, value]) => {
+      responseHeaders[key] = value
+    })
+
+    return {
+      id,
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+      data: text,
+    }
+  } catch (error) {
+    return { id, error: error.message }
+  }
 }
